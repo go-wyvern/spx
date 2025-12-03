@@ -94,14 +94,14 @@ func IsInCoroutine() bool {
 //	    defer resp.Body.Close()
 //	    // Process response...
 //	})
-func ExecuteNative(ctx context.Context, fn func(ctx context.Context, owner any)) {
+func ExecuteNative(fn func(ctx context.Context, owner any)) {
 	// if not in spx coro, just run it
 	if !engine.IsInCoroutine() {
-		fn(ctx, nil)
+		fn(context.Background(), nil)
 		return
 	}
 	owner := engine.GetCoroutineOwner()
-	ctx = engine.GetCurrentThreadContext()
+	ctx := engine.GetCurrentThreadContext()
 	done := &atomic.Bool{}
 	// Execute the actual logic in a go routine to avoid blocking
 	go func() {
@@ -137,7 +137,7 @@ func ExecuteNative(ctx context.Context, fn func(ctx context.Context, owner any))
 //	    sprite := owner.(*MySprite)
 //	    sprite.Say("Hello")
 //	})
-func Execute(ctx context.Context, owner any, fn func(ctx context.Context, owner any)) {
+func Execute(owner any, fn func(ctx context.Context, owner any)) {
 	// in spx coro, just run it
 	if engine.IsInCoroutine() {
 		fn(engine.GetCurrentThreadContext(), owner)
@@ -145,7 +145,7 @@ func Execute(ctx context.Context, owner any, fn func(ctx context.Context, owner 
 	}
 
 	done := make(chan struct{}, 1)
-	Go(ctx, owner, func(ctx context.Context, owner any) {
+	Go(owner, func(ctx context.Context, owner any) {
 		defer close(done)
 		fn(ctx, owner)
 	})
@@ -198,7 +198,7 @@ func Execute(ctx context.Context, owner any, fn func(ctx context.Context, owner 
 //	    spx.Wait(2.0)
 //	    fmt.Println("Hello after 2 seconds")
 //	})
-func Go(ctx context.Context, owner any, fn func(ctx context.Context, owner any)) {
+func Go(owner any, fn func(ctx context.Context, owner any)) {
 	if isSpxEnv() {
 		if owner == nil {
 			if IsInCoroutine() {
@@ -207,11 +207,11 @@ func Go(ctx context.Context, owner any, fn func(ctx context.Context, owner any))
 				owner = engine.GetGame()
 			}
 		}
-		engine.GoWithContext(ctx, owner, func(ctx context.Context) {
+		engine.GoWithContext(owner, func(ctx context.Context) {
 			fn(ctx, owner)
 		})
 	} else {
-		go fn(ctx, owner)
+		go fn(context.Background(), owner)
 	}
 }
 
